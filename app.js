@@ -22,6 +22,8 @@ const chatContainer = document.getElementById('chat-container');
 const chatForm = document.getElementById('chat-form');
 const msgInput = document.getElementById('msg-input');
 const statusBadge = document.getElementById('status');
+const fileInput = document.getElementById('file-input');
+const attachBtn = document.getElementById('attach-btn');
 
 let userId = "";
 
@@ -36,24 +38,42 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
+// Fitur Pilih Foto
+attachBtn.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const base64Image = event.target.result;
+        sendData(null, base64Image); // Kirim sebagai gambar
+    };
+    reader.readAsDataURL(file);
+    fileInput.value = ""; // Reset input
+});
+
 // 2. Kirim Pesan ke Realtime Database
 chatForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const text = msgInput.value.trim();
     if (!text || !userId) return;
+    sendData(text, null);
+    msgInput.value = '';
+});
 
-    // Membuat referensi baru di folder 'messages'
+// Fungsi bantuan untuk kirim data (Teks atau Gambar)
+function sendData(text, image) {
     const messagesRef = ref(db, 'messages');
     const newMessageRef = push(messagesRef);
-    
     set(newMessageRef, {
         uid: userId,
         text: text,
+        image: image, // Menambahkan field image
         timestamp: Date.now()
     });
-
-    msgInput.value = '';
-});
+}
 
 // 3. Mendengarkan Pesan Masuk (Real-time)
 const messagesRef = ref(db, 'messages');
@@ -67,11 +87,17 @@ function renderMessage(msg) {
     const div = document.createElement('div');
     div.className = `msg ${isMe ? 'sent' : 'recv'}`;
     
-    div.innerHTML = `
-        <span class="sender">${isMe ? 'Saya' : 'User ' + msg.uid.slice(0,4)}</span>
-        <p>${msg.text}</p>
-    `;
+    let content = `<span class="sender">${isMe ? 'Saya' : 'User ' + msg.uid.slice(0,4)}</span>`;
     
+    if (msg.image) {
+        content += `<img src="${msg.image}" class="chat-img" alt="Foto">`;
+    }
+    
+    if (msg.text) {
+        content += `<p>${msg.text}</p>`;
+    }
+    
+    div.innerHTML = content;
     chatContainer.appendChild(div);
     chatContainer.scrollTop = chatContainer.scrollHeight;
-}
+                           }
